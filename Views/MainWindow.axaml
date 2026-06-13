@@ -1,0 +1,118 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="VideoCaptureCardViewer.Views.MainWindow"
+        Title="Capture Viewer"
+        Width="1280" Height="720"
+        MinWidth="320" MinHeight="180"
+        Background="#FF0B0B0D"
+        WindowDecorations="None"
+        TransparencyLevelHint="None">
+
+  <Window.Styles>
+    <!-- Auto-hiding chrome fades in/out -->
+    <Style Selector="Border#Chrome">
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+        </Transitions>
+      </Setter>
+    </Style>
+
+    <!-- Flat chrome buttons (Windows-style window controls) -->
+    <Style Selector="Button.chrome">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="Width" Value="46" />
+      <Setter Property="Height" Value="34" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Foreground" Value="#ECFFFFFF" />
+      <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.chrome:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#26FFFFFF" />
+    </Style>
+    <Style Selector="Button.chrome:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#15FFFFFF" />
+    </Style>
+    <Style Selector="Button.close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#E81123" />
+      <Setter Property="TextElement.Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.text1">
+      <Setter Property="FontFamily" Value="Segoe UI" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </Window.Styles>
+
+  <Grid Name="Root">
+
+    <!-- ===== Video surface (drag / double-click target) ===== -->
+    <Border Name="VideoSurface" Background="#FF0B0B0D">
+      <Image Name="Display" Stretch="Uniform" />
+    </Border>
+
+    <!-- ===== No-signal overlay ===== -->
+    <Border Name="NoSignalOverlay"
+            Background="#CC000000"
+            IsVisible="False"
+            HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" MaxWidth="460">
+        <TextBlock Name="NoSignalTitle"
+                   Text="No capture device detected"
+                   FontSize="20" FontWeight="SemiBold"
+                   Foreground="White" HorizontalAlignment="Center" />
+        <TextBlock Name="NoSignalBody"
+                   Text="Connect an HDMI/USB capture card, then choose it in Settings. Webcams are skipped automatically."
+                   TextWrapping="Wrap" TextAlignment="Center"
+                   Foreground="#C8FFFFFF" HorizontalAlignment="Center" />
+        <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+          <Button Content="Open Settings" Click="OnSettingsClick" Padding="16,8" />
+          <Button Content="Rescan devices" Click="OnRetryClick" Padding="16,8" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- ===== Resize grips (borderless only) ===== -->
+    <Panel Name="ResizeGrips">
+      <Border Tag="North"     Background="Transparent" Height="6"  VerticalAlignment="Top"    HorizontalAlignment="Stretch" Margin="10,0,10,0" Cursor="SizeNorthSouth" PointerPressed="OnResizePressed" />
+      <Border Tag="South"     Background="Transparent" Height="6"  VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="10,0,10,0" Cursor="SizeNorthSouth" PointerPressed="OnResizePressed" />
+      <Border Tag="West"      Background="Transparent" Width="6"   HorizontalAlignment="Left"  VerticalAlignment="Stretch"  Margin="0,10,0,10" Cursor="SizeWestEast"   PointerPressed="OnResizePressed" />
+      <Border Tag="East"      Background="Transparent" Width="6"   HorizontalAlignment="Right" VerticalAlignment="Stretch"  Margin="0,10,0,10" Cursor="SizeWestEast"   PointerPressed="OnResizePressed" />
+      <Border Tag="NorthWest" Background="Transparent" Width="12" Height="12" HorizontalAlignment="Left"  VerticalAlignment="Top"    Cursor="TopLeftCorner"     PointerPressed="OnResizePressed" />
+      <Border Tag="NorthEast" Background="Transparent" Width="12" Height="12" HorizontalAlignment="Right" VerticalAlignment="Top"    Cursor="TopRightCorner"    PointerPressed="OnResizePressed" />
+      <Border Tag="SouthWest" Background="Transparent" Width="12" Height="12" HorizontalAlignment="Left"  VerticalAlignment="Bottom" Cursor="BottomLeftCorner"  PointerPressed="OnResizePressed" />
+      <Border Tag="SouthEast" Background="Transparent" Width="12" Height="12" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="BottomRightCorner" PointerPressed="OnResizePressed" />
+    </Panel>
+
+    <!-- ===== Auto-hiding top chrome ===== -->
+    <Border Name="Chrome"
+            VerticalAlignment="Top" HorizontalAlignment="Stretch"
+            Height="34"
+            Background="#B0151517"
+            PointerEntered="OnChromePointerEntered"
+            PointerExited="OnChromePointerExited">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Name="TitleText"
+                   Grid.Column="0"
+                   Margin="12,0,0,0"
+                   VerticalAlignment="Center"
+                   Foreground="#D8FFFFFF" FontSize="12"
+                   Text="Capture Viewer" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+          <Button Name="BtnSettings"   Classes="chrome" Click="OnSettingsClick"   ToolTip.Tip="Settings (Ctrl+,)"               Content="&#xE713;" />
+          <Button Name="BtnNative"     Classes="chrome text1" Click="OnNativeClick" ToolTip.Tip="Restore native resolution, 1:1 (Ctrl+0)" Content="1:1" />
+          <Button Name="BtnFullscreen" Classes="chrome" Click="OnFullscreenClick" ToolTip.Tip="Fullscreen (F11 / double-click)"   Content="&#xE740;" />
+          <Button Name="BtnMinimize"   Classes="chrome" Click="OnMinimizeClick"   ToolTip.Tip="Minimize"                         Content="&#xE921;" />
+          <Button Name="BtnMaxRestore" Classes="chrome" Click="OnMaxRestoreClick" ToolTip.Tip="Maximize"                         Content="&#xE922;" />
+          <Button Name="BtnClose"      Classes="chrome close" Click="OnCloseClick" ToolTip.Tip="Close (Alt+F4)"                   Content="&#xE8BB;" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+  </Grid>
+</Window>

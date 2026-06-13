@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Video Capture Card Viewer — your HDMI source, in a plain window</title>
+<meta name="description" content="A tiny, fast Windows app that shows a video capture card feed in a borderless 1:1 window. Auto-detects the card, skips the webcam. Single .exe, no install. Optional KVM." />
+<meta property="og:title" content="Video Capture Card Viewer" />
+<meta property="og:description" content="Your capture card in a plain window. Borderless, auto-detected, 1:1 native. Single .exe." />
+<meta property="og:image" content="https://mayerwin.github.io/Video-Capture-Card-Viewer/screenshots/01-main-view.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23090a0c'/%3E%3Crect x='2' y='3' width='2' height='6' fill='%23d6d6d6'/%3E%3Crect x='4' y='3' width='2' height='6' fill='%23e3e30f'/%3E%3Crect x='6' y='3' width='2' height='6' fill='%2316d6d6'/%3E%3Crect x='8' y='3' width='2' height='6' fill='%2318c018'/%3E%3Crect x='10' y='3' width='2' height='6' fill='%23d61fd6'/%3E%3Ccircle cx='8' cy='12' r='1.6' fill='%232bf5a0'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>document.documentElement.classList.add('js')</script>
+<style>
+  :root{
+    --bg:#08090b; --bg2:#0e1013; --panel:#121519; --line:#1d2229;
+    --ink:#eef1f4; --muted:#878d97; --faint:#5b626c;
+    --signal:#2bf5a0; --signal-dim:#1aa873; --amber:#ffb020; --rec:#ff3b46;
+    --b1:#d6d6d6; --b2:#e3e30f; --b3:#16d6d6; --b4:#18c018; --b5:#d61fd6; --b6:#d61f1f; --b7:#2a2ad6;
+    --mono:'Space Mono', ui-monospace, monospace;
+    --sans:'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; line-height:1.6; overflow-x:hidden;
+  }
+  /* atmosphere: faint grid + scanlines + vignette */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+    background-size:46px 46px;
+    mask-image:radial-gradient(circle at 50% 30%, #000 0%, transparent 75%);
+  }
+  body::after{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+    opacity:.35; mix-blend-mode:multiply;
+  }
+  .wrap{position:relative; z-index:1; max-width:1140px; margin:0 auto; padding:0 24px}
+
+  a{color:inherit}
+  .mono{font-family:var(--mono)}
+  .tag{font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--signal)}
+
+  /* SMPTE bar strip */
+  .bars{display:flex; height:6px; width:100%}
+  .bars>i{flex:1}
+  .bars>i:nth-child(1){background:var(--b1)} .bars>i:nth-child(2){background:var(--b2)}
+  .bars>i:nth-child(3){background:var(--b3)} .bars>i:nth-child(4){background:var(--b4)}
+  .bars>i:nth-child(5){background:var(--b5)} .bars>i:nth-child(6){background:var(--b6)}
+  .bars>i:nth-child(7){background:var(--b7)}
+
+  /* nav */
+  header.nav{position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
+    background:linear-gradient(180deg, rgba(8,9,11,.92), rgba(8,9,11,.6)); border-bottom:1px solid var(--line)}
+  .nav .row{display:flex; align-items:center; justify-content:space-between; height:62px}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--mono); font-weight:700; letter-spacing:.04em}
+  .brand .dot{width:9px; height:9px; border-radius:2px; background:var(--rec); box-shadow:0 0 10px var(--rec); animation:blink 2.4s steps(1) infinite}
+  @keyframes blink{0%,70%{opacity:1}71%,100%{opacity:.25}}
+  .nav nav{display:flex; gap:26px; align-items:center; font-size:14px}
+  .nav nav a{color:var(--muted); text-decoration:none; transition:color .2s}
+  .nav nav a:hover{color:var(--ink)}
+  .nav .gh{font-family:var(--mono); font-size:13px; border:1px solid var(--line); padding:8px 14px; border-radius:8px; color:var(--ink); text-decoration:none; transition:.2s}
+  .nav .gh:hover{border-color:var(--signal); color:var(--signal)}
+  @media(max-width:720px){ .nav nav{display:none} }
+
+  /* hero */
+  .hero{padding:84px 0 40px; position:relative}
+  .hero .grid{display:grid; grid-template-columns:1.05fr .95fr; gap:48px; align-items:center}
+  @media(max-width:920px){ .hero .grid{grid-template-columns:1fr; gap:34px} }
+  h1{font-family:var(--mono); font-weight:700; font-size:clamp(34px,5.2vw,60px); line-height:1.04; letter-spacing:-.01em; margin:18px 0 0}
+  h1 em{font-style:normal; color:var(--signal)}
+  .lede{color:var(--muted); font-size:18px; max-width:46ch; margin:20px 0 0}
+  .cta{display:flex; gap:14px; flex-wrap:wrap; margin-top:30px}
+  .btn{font-family:var(--mono); font-size:14px; font-weight:700; text-decoration:none; padding:13px 22px; border-radius:10px; display:inline-flex; align-items:center; gap:10px; transition:.18s; border:1px solid transparent}
+  .btn.primary{background:var(--signal); color:#04130c; box-shadow:0 10px 30px -10px var(--signal)}
+  .btn.primary:hover{transform:translateY(-2px); box-shadow:0 16px 40px -12px var(--signal)}
+  .btn.ghost{border-color:var(--line); color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--muted); transform:translateY(-2px)}
+  .meta{margin-top:16px; font-family:var(--mono); font-size:12px; color:var(--faint); letter-spacing:.05em}
+
+  /* monitor frame */
+  .monitor{position:relative; border-radius:14px; padding:12px; background:linear-gradient(160deg,#1a1e24,#0c0e11);
+    border:1px solid var(--line); box-shadow:0 40px 80px -30px #000, 0 0 0 1px rgba(43,245,160,.06) inset}
+  .monitor .screen{position:relative; border-radius:8px; overflow:hidden; border:1px solid #000; aspect-ratio:16/9; background:#000}
+  .monitor .screen img{width:100%; height:100%; object-fit:cover; display:block}
+  .monitor .scan{position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px); opacity:.5}
+  .monitor .osd{position:absolute; top:10px; left:12px; font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:#caffea; text-shadow:0 1px 2px #000; display:flex; gap:8px; align-items:center}
+  .monitor .osd .rec{width:8px; height:8px; border-radius:50%; background:var(--rec); box-shadow:0 0 8px var(--rec); animation:blink 1.6s steps(1) infinite}
+  .monitor .tc{position:absolute; bottom:10px; right:12px; font-family:var(--mono); font-size:11px; color:#caffea; text-shadow:0 1px 2px #000; letter-spacing:.08em}
+  .float{position:absolute; right:-12px; bottom:-14px; background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-family:var(--mono); font-size:12px; color:var(--signal); box-shadow:0 18px 40px -18px #000}
+
+  /* sections */
+  section{padding:70px 0; position:relative}
+  .sec-head{display:flex; align-items:baseline; gap:16px; margin-bottom:34px}
+  .sec-head .idx{font-family:var(--mono); color:var(--signal-dim); font-size:13px}
+  .sec-head h2{font-family:var(--mono); font-size:clamp(22px,3vw,32px); margin:0; letter-spacing:-.01em}
+  .divider{height:1px; background:var(--line)}
+
+  .features{display:grid; grid-template-columns:repeat(3,1fr); gap:18px}
+  @media(max-width:880px){ .features{grid-template-columns:1fr 1fr} }
+  @media(max-width:560px){ .features{grid-template-columns:1fr} }
+  .card{background:linear-gradient(180deg,var(--panel),#0d0f12); border:1px solid var(--line); border-radius:12px; padding:22px; transition:.2s; position:relative; overflow:hidden}
+  .card:hover{transform:translateY(-4px); border-color:#2a313a}
+  .card::after{content:""; position:absolute; left:0; top:0; height:3px; width:0; background:var(--signal); transition:width .3s}
+  .card:hover::after{width:100%}
+  .card .k{font-family:var(--mono); font-size:12px; color:var(--faint); letter-spacing:.1em}
+  .card h3{font-size:17px; margin:10px 0 8px}
+  .card p{color:var(--muted); font-size:14.5px; margin:0}
+
+  /* shots */
+  .shots{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+  .shots .big{grid-column:1 / -1}
+  @media(max-width:720px){ .shots{grid-template-columns:1fr} }
+  .shot{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#000; box-shadow:0 24px 60px -34px #000}
+  .shot img{width:100%; display:block}
+  .shot .cap{font-family:var(--mono); font-size:11.5px; color:var(--muted); padding:10px 14px; border-top:1px solid var(--line); background:var(--bg2); letter-spacing:.04em}
+
+  /* kvm */
+  .kvm{display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:start}
+  @media(max-width:860px){ .kvm{grid-template-columns:1fr} }
+  .note{border-left:2px solid var(--amber); background:linear-gradient(90deg, rgba(255,176,32,.08), transparent); padding:14px 18px; border-radius:0 10px 10px 0; color:#e7d9bd; font-size:14.5px}
+  .pipe{font-family:var(--mono); font-size:13px; color:var(--muted); background:var(--bg2); border:1px solid var(--line); border-radius:10px; padding:16px; line-height:2}
+  .pipe b{color:var(--signal)}
+  .backends{list-style:none; padding:0; margin:18px 0 0; display:flex; flex-direction:column; gap:12px}
+  .backends li{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px}
+  .backends .n{font-family:var(--mono); color:var(--ink); font-size:14px}
+  .backends .d{color:var(--muted); font-size:13.5px; margin-top:4px}
+  .pill{display:inline-block; font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; padding:2px 8px; border-radius:20px; margin-left:8px; vertical-align:middle}
+  .pill.ok{background:rgba(43,245,160,.14); color:var(--signal)}
+  .pill.exp{background:rgba(255,176,32,.14); color:var(--amber)}
+
+  /* keys */
+  .keys{width:100%; border-collapse:collapse; font-size:14px}
+  .keys td{padding:11px 14px; border-bottom:1px solid var(--line)}
+  .keys tr td:first-child{width:230px}
+  kbd{font-family:var(--mono); font-size:12px; background:#161a1f; border:1px solid #262c34; border-bottom-width:2px; border-radius:6px; padding:3px 8px; color:#d6f5e7}
+
+  /* download band */
+  .band{border:1px solid var(--line); border-radius:16px; background:radial-gradient(120% 140% at 80% -20%, rgba(43,245,160,.10), transparent 60%), var(--panel); padding:40px; text-align:center; position:relative; overflow:hidden}
+  .band .bars{position:absolute; top:0; left:0}
+  .band h2{font-family:var(--mono); font-size:clamp(22px,3vw,30px); margin:10px 0 6px}
+  .band p{color:var(--muted); margin:0 0 22px}
+
+  footer{padding:48px 0 64px; color:var(--faint); font-size:13px}
+  footer .row{display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; align-items:center}
+  footer a{color:var(--muted); text-decoration:none} footer a:hover{color:var(--signal)}
+
+  /* reveal */
+  .js .reveal{opacity:0; transform:translateY(16px); transition:opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1)}
+  .js .reveal.in{opacity:1; transform:none}
+  .hero .reveal{animation:rise .8s cubic-bezier(.2,.7,.2,1) both}
+  .js .hero .reveal{opacity:0}
+  .js .hero .reveal.in{opacity:1}
+  @keyframes rise{from{opacity:0; transform:translateY(18px)} to{opacity:1; transform:none}}
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} .js .reveal{opacity:1; transform:none} }
+</style>
+</head>
+<body>
+<div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+<header class="nav">
+  <div class="wrap row">
+    <div class="brand"><span class="dot"></span>CAPTURE&nbsp;VIEWER</div>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#shots">Screens</a>
+      <a href="#kvm">KVM</a>
+      <a href="#download">Download</a>
+    </nav>
+    <a class="gh" href="https://github.com/mayerwin/Video-Capture-Card-Viewer">GitHub ↗</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap grid">
+    <div>
+      <span class="tag reveal" style="animation-delay:.05s">Windows · single .exe · MIT</span>
+      <h1 class="reveal" style="animation-delay:.12s">Your capture card,<br>in a <em>plain window.</em></h1>
+      <p class="lede reveal" style="animation-delay:.2s">Stop running OBS just to <i>look at</i> an HDMI source. This shows the feed in a borderless,
+        1:1‑native window — auto‑detecting the capture card and skipping your webcam.</p>
+      <div class="cta reveal" style="animation-delay:.28s">
+        <a class="btn primary" href="https://github.com/mayerwin/Video-Capture-Card-Viewer/releases/latest/download/VideoCaptureCardViewer.exe">▼ Download .exe</a>
+        <a class="btn ghost" href="https://github.com/mayerwin/Video-Capture-Card-Viewer">View source</a>
+      </div>
+      <div class="meta reveal" style="animation-delay:.34s">no install · self‑contained · ~no dependencies</div>
+    </div>
+    <div class="reveal" style="animation-delay:.24s">
+      <div class="monitor">
+        <div class="screen">
+          <img src="screenshots/01-main-view.png" alt="Video Capture Card Viewer main window showing a captured feed" />
+          <div class="scan"></div>
+          <div class="osd"><span class="rec"></span> HDMI IN · 1920×1080 · 60</div>
+          <div class="tc">00:00:14:22</div>
+        </div>
+        <div class="float">● live · 1:1 native</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="idx">// 01</span><h2>Does one job, well</h2></div>
+    <div class="features">
+      <div class="card reveal"><div class="k">CHROME</div><h3>Borderless by default</h3><p>A clean, chromeless window. Flip a real border on in Settings or with <kbd>Ctrl</kbd>+<kbd>B</kbd>.</p></div>
+      <div class="card reveal"><div class="k">UX</div><h3>Auto‑hiding controls</h3><p>An overlay bar holds minimize / maximize / fullscreen / close and a settings gear, then fades away. Cursor hides in fullscreen.</p></div>
+      <div class="card reveal"><div class="k">SOURCE</div><h3>Finds the capture card</h3><p>Name + capability heuristics prefer an HDMI/USB card over a webcam. Always overridable.</p></div>
+      <div class="card reveal"><div class="k">PIXELS</div><h3>1:1 native resolution</h3><p>One source pixel = one screen pixel — no up/downscaling. Per‑monitor‑V2 DPI aware. <kbd>Ctrl</kbd>+<kbd>0</kbd>.</p></div>
+      <div class="card reveal"><div class="k">INPUT</div><h3>Double‑click fullscreen</h3><p>Double‑click the picture to toggle fullscreen. Drag it to move; drag the edges to resize.</p></div>
+      <div class="card reveal"><div class="k">SIGNAL</div><h3>Watchdog + hotplug</h3><p>"No device / signal lost" overlay with one‑click rescan, auto‑reconnect when the source returns, and a built‑in test pattern stand‑in.</p></div>
+      <div class="card reveal"><div class="k">AUDIO</div><h3>Audio passthrough</h3><p>Plays the card's HDMI audio through your default output, auto‑matched to the video device. Toggle with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd>.</p></div>
+      <div class="card reveal"><div class="k">CAPTURE</div><h3>Snapshot + scaling</h3><p><kbd>Ctrl</kbd>+<kbd>S</kbd> saves a PNG. Choose Uniform / Fill / 1:1 scaling. Single‑instance so two launches don't fight the device.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="shots">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="idx">// 02</span><h2>In action</h2></div>
+    <div class="shots">
+      <div class="shot big reveal"><img src="screenshots/01-main-view.png" alt="Main viewer window"><div class="cap">// main view — auto‑selected capture card, auto‑hiding chrome</div></div>
+      <div class="shot reveal"><img src="screenshots/02-settings.png" alt="Settings window"><div class="cap">// settings — source, window, KVM</div></div>
+      <div class="shot reveal"><img src="screenshots/03-borderless-native.png" alt="Borderless 1:1 view"><div class="cap">// borderless · 1:1 native</div></div>
+    </div>
+    <p class="meta reveal" style="margin-top:14px">Screens use the app's built‑in test pattern as stand‑in "screen content."</p>
+  </div>
+</section>
+
+<section id="kvm">
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="idx">// 03</span><h2>Optional KVM</h2></div>
+    <div class="kvm">
+      <div>
+        <p class="lede reveal" style="margin-top:0">Drive the captured machine's keyboard and mouse from the viewer — great for a headless mini‑PC.</p>
+        <div class="note reveal" style="margin-top:18px"><b>Reality check:</b> a PC can't emulate a USB keyboard by itself — USB is host/device asymmetric and Windows ships no HID‑gadget stack. KVM needs a small piece of external HID hardware.</div>
+        <ul class="backends reveal">
+          <li><div class="n">CH9329 dongle <span class="pill ok">recommended · ~$10</span></div><div class="d">USB‑serial → HID. Driven over a COM port; HID side plugs into the target. Absolute mouse supported.</div></li>
+          <li><div class="n">Flipper Zero <span class="pill exp">experimental</span></div><div class="d">Companion app re‑emits USB HID from a serial/BLE command stream. Relative mouse only.</div></li>
+          <li><div class="n">Loopback <span class="pill ok">no hardware</span></div><div class="d">Logs reports so you can verify mapping without a dongle.</div></li>
+        </ul>
+      </div>
+      <div>
+        <div class="pipe reveal">
+          <div>[ PC · viewer ]</div>
+          <div>&nbsp;&nbsp;│ serial (BLE‑UART / COM)</div>
+          <div>&nbsp;&nbsp;▼</div>
+          <div>[ <b>CH9329</b> / <b>Flipper</b> ]</div>
+          <div>&nbsp;&nbsp;│ USB HID</div>
+          <div>&nbsp;&nbsp;▼</div>
+          <div>[ target machine ]</div>
+        </div>
+        <p class="meta reveal" style="margin-top:14px">Click the picture to grab control · <kbd>Scroll Lock</kbd> to release.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head reveal"><span class="idx">// 04</span><h2>Shortcuts</h2></div>
+    <table class="keys reveal">
+      <tr><td><kbd>F11</kbd> / double‑click</td><td>Toggle fullscreen</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Exit fullscreen</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Restore native resolution (1:1)</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>B</kbd></td><td>Toggle window border</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save snapshot (PNG)</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd></td><td>Toggle audio passthrough</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>Open Settings</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd></td><td>Minimize</td></tr>
+      <tr><td><kbd>Scroll Lock</kbd></td><td>Grab / release KVM control</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="band reveal">
+      <div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <h2>Get it</h2>
+      <p>One self‑contained file. Download, run, done.</p>
+      <div class="cta" style="justify-content:center">
+        <a class="btn primary" href="https://github.com/mayerwin/Video-Capture-Card-Viewer/releases/latest/download/VideoCaptureCardViewer.exe">▼ Download VideoCaptureCardViewer.exe</a>
+        <a class="btn ghost" href="https://github.com/mayerwin/Video-Capture-Card-Viewer/releases/latest">All releases</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap row">
+    <div class="mono">▮ CAPTURE VIEWER — MIT</div>
+    <div>Built with <a href="https://avaloniaui.net">Avalonia</a> + <a href="https://github.com/kekyo/FlashCap">FlashCap</a> · .NET 10 · <a href="https://github.com/mayerwin/Video-Capture-Card-Viewer">source</a></div>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((entries)=>{
+    for(const e of entries){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }
+  }, {threshold:.12, rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+  // Hero reveals fire immediately on load.
+  window.addEventListener('load', ()=> document.querySelectorAll('.hero .reveal').forEach(el=>el.classList.add('in')));
+</script>
+</body>
+</html>

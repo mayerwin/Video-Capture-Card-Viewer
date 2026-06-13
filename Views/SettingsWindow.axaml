@@ -1,0 +1,138 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="VideoCaptureCardViewer.Views.SettingsWindow"
+        Title="Settings — Capture Viewer"
+        Width="540" Height="640"
+        MinWidth="460" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        Background="#FF161618">
+
+  <Window.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#FFFFFFFF" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="#99FFFFFF" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="Margin" Value="0,4,0,0" />
+    </Style>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="#FF1F1F22" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16" />
+      <Setter Property="Margin" Value="0,0,0,12" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel>
+    <Border DockPanel.Dock="Bottom" Background="#FF161618" Padding="16,10">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+        <TextBlock Name="StatusText" VerticalAlignment="Center" Foreground="#88FFFFFF" FontSize="11" />
+        <Button Content="Close" Click="OnCloseClick" Padding="18,7" />
+      </StackPanel>
+    </Border>
+
+    <ScrollViewer Padding="16">
+      <StackPanel>
+
+        <!-- Source -->
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h" Text="Source" />
+
+            <CheckBox Name="AutoSelectCheck"
+                      Content="Automatically pick the capture card (recommended)" />
+            <TextBlock Classes="hint"
+                       Text="Uses name and capability heuristics to prefer an HDMI/USB capture card over a webcam." />
+
+            <TextBlock Text="Device" Margin="0,10,0,2" Foreground="#CCFFFFFF" FontSize="12" />
+            <ComboBox Name="DeviceCombo" HorizontalAlignment="Stretch" />
+
+            <TextBlock Text="Format" Margin="0,10,0,2" Foreground="#CCFFFFFF" FontSize="12" />
+            <ComboBox Name="FormatCombo" HorizontalAlignment="Stretch" />
+
+            <Button Name="ApplyButton" Content="Apply source" Click="OnApplyClick" Margin="0,12,0,0" Padding="16,7" />
+          </StackPanel>
+        </Border>
+
+        <!-- Window -->
+        <Border Classes="card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="h" Text="Window" />
+            <CheckBox Name="BorderCheck"      Content="Show window border / title bar" />
+            <CheckBox Name="AlwaysOnTopCheck" Content="Always on top" />
+            <CheckBox Name="StartFsCheck"     Content="Start in fullscreen" />
+            <CheckBox Name="RememberCheck"    Content="Remember window size and position" />
+
+            <TextBlock Text="Scaling" Margin="0,8,0,2" Foreground="#CCFFFFFF" FontSize="12" />
+            <ComboBox Name="StretchCombo" HorizontalAlignment="Stretch" />
+
+            <Button Name="NativeButton" Content="Restore native resolution (1:1, no scaling)"
+                    Click="OnNativeClick" Margin="0,6,0,0" Padding="16,7" />
+            <TextBlock Classes="hint"
+                       Text="Sizes the window so one source pixel maps to one screen pixel — no upscaling or downscaling." />
+          </StackPanel>
+        </Border>
+
+        <!-- Audio -->
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h" Text="Audio" />
+            <CheckBox Name="AudioCheck" Content="Play the capture card's audio (passthrough)" />
+            <TextBlock Text="Audio input" Margin="0,8,0,2" Foreground="#CCFFFFFF" FontSize="12" />
+            <Grid ColumnDefinitions="*,Auto">
+              <ComboBox Name="AudioCombo" Grid.Column="0" HorizontalAlignment="Stretch" />
+              <Button Grid.Column="1" Content="Refresh" Click="OnRefreshAudioClick"
+                      VerticalAlignment="Center" Margin="8,0,0,0" Padding="12,6" />
+            </Grid>
+            <TextBlock Name="AudioStatus" Foreground="#88FFFFFF" FontSize="11" Margin="0,6,0,0" />
+            <TextBlock Classes="hint"
+                       Text="Leave on 'Auto' to match the audio endpoint to the chosen capture device. Toggle with Ctrl+Shift+M." />
+          </StackPanel>
+        </Border>
+
+        <!-- KVM -->
+        <Border Name="KvmCard" Classes="card">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="h" Text="KVM - control the target's keyboard &amp; mouse" />
+            <TextBlock Classes="hint"
+                       Text="Requires external USB HID hardware - a PC cannot emulate USB HID by itself. Use a CH9329 dongle (recommended) or a Flipper Zero running the companion bridge app. Loopback just logs reports, for testing." />
+
+            <TextBlock Text="Backend" Margin="0,8,0,2" Foreground="#CCFFFFFF" FontSize="12" />
+            <ComboBox Name="KvmBackendCombo" HorizontalAlignment="Stretch" />
+
+            <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="Serial / COM port" Foreground="#CCFFFFFF" FontSize="12" Margin="0,0,0,2" />
+                <ComboBox Name="KvmPortCombo" HorizontalAlignment="Stretch" />
+              </StackPanel>
+              <Button Grid.Column="1" Content="Refresh" Click="OnRefreshPortsClick"
+                      VerticalAlignment="Bottom" Margin="8,0,0,0" Padding="12,6" />
+            </Grid>
+
+            <TextBlock Text="Baud rate" Margin="0,8,0,2" Foreground="#CCFFFFFF" FontSize="12" />
+            <ComboBox Name="KvmBaudCombo" HorizontalAlignment="Stretch" />
+
+            <CheckBox Name="KvmAutoConnectCheck" Content="Connect automatically on launch" Margin="0,6,0,0" />
+
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+              <Button Name="KvmConnectButton" Content="Connect" Click="OnKvmConnectClick" Padding="16,7" />
+              <TextBlock Name="KvmStatus" VerticalAlignment="Center" Foreground="#99FFFFFF" FontSize="11" Text="Disconnected" />
+            </StackPanel>
+
+            <TextBlock Classes="hint" Margin="0,6,0,0"
+                       Text="When connected, click the video to take control (the cursor hides); press Scroll Lock to release. The pointer maps 1:1 to the captured resolution." />
+          </StackPanel>
+        </Border>
+
+        <TextBlock Classes="hint" HorizontalAlignment="Center"
+                   Text="Tips: double-click the video to toggle fullscreen · F11 fullscreen · Ctrl+0 native size · Ctrl+B border · right-click for the menu" />
+
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

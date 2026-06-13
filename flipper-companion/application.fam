@@ -1,0 +1,11 @@
+App(
+    appid="vckvm_bridge",
+    name="VCKVM Bridge",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="vckvm_bridge_app",
+    stack_size=4 * 1024,
+    fap_category="USB",
+    fap_description="Serial -> USB HID bridge for the Video Capture Card Viewer KVM feature.",
+    fap_author="Video Capture Card Viewer",
+    fap_version="0.1",
+)

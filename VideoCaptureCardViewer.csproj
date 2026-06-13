@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>VideoCaptureCardViewer</AssemblyName>
+    <RootNamespace>VideoCaptureCardViewer</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Avalonia options -->
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+
+    <!-- Fold our own symbols into the assembly and don't copy native (Skia/HarfBuzz) PDBs into
+         publish, so the publish folder is genuinely just the single .exe. -->
+    <DebugType>embedded</DebugType>
+    <CopyDebugSymbolFilesFromPackages>false</CopyDebugSymbolFilesFromPackages>
+
+    <!-- Single-file / self-contained settings are applied only when publishing (see publish.cmd /
+         README), so the dev `dotnet build` inner loop stays fast and robust. -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Trimming is OFF on purpose: Avalonia + reflection-y bits are not trim-clean. -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+
+    <PackageReference Include="FlashCap" Version="1.11.0" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.9" />
+    <PackageReference Include="NAudio" Version="2.3.0" />
+  </ItemGroup>
+
+  <!-- SkiaSharp/HarfBuzz ship large native .pdb files that get copied to publish. Our own symbols
+       are embedded (DebugType=embedded), so strip every .pdb from the publish folder to keep the
+       release a single .exe. -->
+  <Target Name="StripNativePdbs" AfterTargets="Publish">
+    <ItemGroup>
+      <_PublishPdb Include="$(PublishDir)**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(_PublishPdb)" />
+  </Target>
+
+</Project>

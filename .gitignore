@@ -1,0 +1,15 @@
+## .NET / build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+publish/
+*.user
+*.suo
+
+## Rider / VS
+.idea/
+.vs/
+
+## Local settings dumps
+*.binlog
