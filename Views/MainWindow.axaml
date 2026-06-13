@@ -47,6 +47,15 @@
       <Setter Property="FontSize" Value="12" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+
+    <!-- Transient toast -->
+    <Style Selector="Border#Toast">
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+        </Transitions>
+      </Setter>
+    </Style>
   </Window.Styles>
 
   <Grid Name="Root">
@@ -112,6 +121,16 @@
           <Button Name="BtnClose"      Classes="chrome close" Click="OnCloseClick" ToolTip.Tip="Close (Alt+F4)"                   Content="&#xE8BB;" />
         </StackPanel>
       </Grid>
+    </Border>
+
+    <!-- ===== Transient toast (snapshot saved, audio toggled, fullscreen hint) ===== -->
+    <Border Name="Toast"
+            Opacity="0" IsHitTestVisible="False"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom"
+            Margin="0,0,0,40"
+            Background="#E615151A" BorderBrush="#33FFFFFF" BorderThickness="1"
+            CornerRadius="16" Padding="16,9">
+      <TextBlock Name="ToastText" Foreground="White" FontSize="13" />
     </Border>
 
   </Grid>

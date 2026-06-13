@@ -18,6 +18,8 @@
          publish, so the publish folder is genuinely just the single .exe. -->
     <DebugType>embedded</DebugType>
     <CopyDebugSymbolFilesFromPackages>false</CopyDebugSymbolFilesFromPackages>
+    <!-- Don't copy reference-related .pdb/.xml into output/publish (belt-and-suspenders with StripNativePdbs). -->
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
 
     <!-- Single-file / self-contained settings are applied only when publishing (see publish.cmd /
          README), so the dev `dotnet build` inner loop stays fast and robust. -->

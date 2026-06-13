@@ -51,6 +51,14 @@ When the app starts it switches the Flipper's USB into HID mode. Plug that USB�
   the USART acquire/callback in `vckvm_bridge.c` with your firmware's `furi_hal_bt` serial callback).
   Until you do, use the GPIO‑UART path above (a BLE‑UART→COM dongle on the PC side also works).
 
+## Pointer sensitivity
+
+The Flipper's USB mouse is relative-only, so absolute coordinates are converted to relative deltas in
+`vckvm_bridge.c` using a `/16` divisor (remainder carried, so there's no drift). Smaller divisor =
+faster pointer. If the cursor under/over-shoots on your target, tune that divisor and/or the target's
+pointer speed/acceleration. A keepalive isn't required — a quiet link for 500 ms triggers a one-shot
+release-all so nothing stays stuck.
+
 ## Notes for porting
 
 `furi_hal_*` names occasionally change between firmware versions. The only firmware‑specific calls are

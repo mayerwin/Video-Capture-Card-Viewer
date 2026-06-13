@@ -123,6 +123,8 @@ static void handle_line(char* line, KbState* kb, uint8_t* mbtn, int* lastAx, int
             if(*lastAx >= 0) {
                 // Convert absolute 0..32767 to relative deltas, carrying the remainder so small
                 // moves aren't dropped, and looping so large jumps aren't clamped away.
+                // The /16 divisor is a sensitivity knob: smaller = faster pointer. Tune it (or the
+                // target's pointer speed/acceleration) so a full-width move maps to your screen.
                 g_accX += (x - *lastAx);
                 g_accY += (y - *lastAy);
                 int dx = g_accX / 16; g_accX -= dx * 16;

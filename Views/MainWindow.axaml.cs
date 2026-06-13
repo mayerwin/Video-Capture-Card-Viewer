@@ -32,6 +32,9 @@ public partial class MainWindow : Window
     private Panel _resizeGrips = null!;
     private Button _btnMaxRestore = null!;
     private Button _btnFullscreen = null!;
+    private Border _toast = null!;
+    private TextBlock _toastText = null!;
+    private DispatcherTimer? _toastTimer;
 
     // Chrome auto-hide
     private readonly DispatcherTimer _hideTimer;
@@ -89,6 +92,8 @@ public partial class MainWindow : Window
         _resizeGrips = this.FindControl<Panel>("ResizeGrips")!;
         _btnMaxRestore = this.FindControl<Button>("BtnMaxRestore")!;
         _btnFullscreen = this.FindControl<Button>("BtnFullscreen")!;
+        _toast = this.FindControl<Border>("Toast")!;
+        _toastText = this.FindControl<TextBlock>("ToastText")!;
 
         _capture.FrameArrived += OnFrameArrived;
         _capture.Error += OnCaptureError;
@@ -197,6 +202,7 @@ public partial class MainWindow : Window
         // Stop timers and detach handlers so nothing fires against a tearing-down window.
         _watchdog.Stop();
         _hideTimer.Stop();
+        _toastTimer?.Stop();
         _capture.FrameArrived -= OnFrameArrived;
         _capture.Error -= OnCaptureError;
         _kvm.StateChanged -= OnKvmStateChanged;
@@ -359,6 +365,9 @@ public partial class MainWindow : Window
         _settings.AudioEnabled = !_settings.AudioEnabled;
         _settings.Save();
         StartAudioForCurrentDevice();
+        ShowToast(_settings.AudioEnabled
+            ? (_audio.IsRunning ? $"Audio on - {_audio.CurrentDeviceName}" : "Audio on (no matching input found)")
+            : "Audio off");
     }
 
     // ----------------------------------------------------------------- KVM API (used by Settings)
@@ -402,7 +411,8 @@ public partial class MainWindow : Window
         {
             int w = _capture.FrameWidth > 0 ? _capture.FrameWidth : 1280;
             int h = _capture.FrameHeight > 0 ? _capture.FrameHeight : 720;
-            (_display.Source as IDisposable)?.Dispose();
+            // Dispose only a previous demo pattern — never a live capture Bitmap (CaptureService owns those).
+            if (_display.Source is RenderTargetBitmap previous) previous.Dispose();
             _display.Source = DemoContent.CreateTestPattern(Math.Max(640, w), Math.Max(360, h));
         }
         catch
@@ -425,6 +435,16 @@ public partial class MainWindow : Window
     {
         _noSignalShown = false;
         _noSignalOverlay.IsVisible = false;
+    }
+
+    private void ShowToast(string message, double seconds = 2.0)
+    {
+        _toastText.Text = message;
+        _toast.Opacity = 1;
+        _toastTimer?.Stop();
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+        _toastTimer.Tick += (_, _) => { _toastTimer?.Stop(); _toast.Opacity = 0; };
+        _toastTimer.Start();
     }
 
     // ----------------------------------------------------------------- chrome auto-hide
@@ -682,6 +702,8 @@ public partial class MainWindow : Window
         UpdateWindowButtons();
         UpdateResizeGripsVisibility();
         ShowChrome();
+        if (on && !_kvm.IsGrabbed)
+            ShowToast("Move the mouse for controls  -  Esc to exit  -  double-click for windowed", 3.0);
     }
 
     private double EffectiveScale() => RenderScaling <= 0 ? 1.0 : RenderScaling;
@@ -785,13 +807,26 @@ public partial class MainWindow : Window
 
     private void SaveSnapshot()
     {
-        if (_display.Source is not Bitmap bmp) return;
+        if (_display.Source is not Bitmap src) return;
         try
         {
             var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), "Capture Viewer");
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, $"capture-{DateTime.Now:yyyyMMdd-HHmmss}.png");
-            bmp.Save(path);
+
+            // Copy the live frame into a detached bitmap so it can keep updating/being disposed
+            // while we encode the PNG off the UI thread (no jank, no use-after-dispose).
+            var px = src.PixelSize;
+            var copy = new RenderTargetBitmap(px, new Vector(96, 96));
+            using (var ctx = copy.CreateDrawingContext())
+                ctx.DrawImage(src, new Rect(0, 0, px.Width, px.Height));
+
+            _ = Task.Run(() =>
+            {
+                try { copy.Save(path); } catch { /* best-effort */ } finally { copy.Dispose(); }
+            });
+
+            ShowToast($"Saved {Path.GetFileName(path)}");
         }
         catch
         {
@@ -931,13 +966,10 @@ public partial class MainWindow : Window
             foreach (var d in devices)
             {
                 var captured = d;
-                var mi = new MenuItem
-                {
-                    Header = d.Name,
-                    ToggleType = MenuItemToggleType.Radio,
-                    GroupName = "Devices",
-                    IsChecked = d.Name == _capture.CurrentDeviceName,
-                };
+                bool isCurrent = d.Name == _capture.CurrentDeviceName;
+                // Use a check-glyph prefix instead of ToggleType.Radio to avoid the Avalonia
+                // radio-group first-open glitch; the menu is rebuilt on each open so it stays correct.
+                var mi = new MenuItem { Header = (isCurrent ? "✓  " : "     ") + d.Name };
                 mi.Click += async (_, _) =>
                 {
                     var fmt = CaptureService.PickBestFormat(captured, _settings.PreferredFormat);
