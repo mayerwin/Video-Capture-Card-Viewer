@@ -61,6 +61,7 @@ self‑contained file — no .NET install required. Just run it.
 | `Ctrl+0` | Restore native resolution (1:1) |
 | `Ctrl+B` | Toggle window border |
 | `Ctrl+S` | Save snapshot (PNG) |
+| `Ctrl+F` | Toggle FPS / diagnostics overlay |
 | `Ctrl+Shift+M` | Toggle audio passthrough |
 | `Ctrl+,` | Open Settings |
 | `Ctrl+M` | Minimize |

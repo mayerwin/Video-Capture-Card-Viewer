@@ -35,6 +35,10 @@ public partial class MainWindow : Window
     private Border _toast = null!;
     private TextBlock _toastText = null!;
     private DispatcherTimer? _toastTimer;
+    private Border _fpsOverlay = null!;
+    private TextBlock _fpsText = null!;
+    private readonly DispatcherTimer _fpsTimer;
+    private long _lastCapturedFrames, _lastPresentedFrames, _lastFpsTick;
 
     // Chrome auto-hide
     private readonly DispatcherTimer _hideTimer;
@@ -94,6 +98,9 @@ public partial class MainWindow : Window
         _btnFullscreen = this.FindControl<Button>("BtnFullscreen")!;
         _toast = this.FindControl<Border>("Toast")!;
         _toastText = this.FindControl<TextBlock>("ToastText")!;
+        _fpsOverlay = this.FindControl<Border>("FpsOverlay")!;
+        _fpsText = this.FindControl<TextBlock>("FpsText")!;
+        _fpsOverlay.IsVisible = _settings.ShowFps;
 
         // Cheap, smooth scaling for constantly-changing video (avoids per-present high-quality resample).
         RenderOptions.SetBitmapInterpolationMode(_display, BitmapInterpolationMode.LowQuality);
@@ -123,6 +130,9 @@ public partial class MainWindow : Window
         _watchdog = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _watchdog.Tick += (_, _) => CheckSignal();
 
+        _fpsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _fpsTimer.Tick += (_, _) => UpdateFps();
+
         BuildContextMenu();
 
         // Apply persisted look-and-feel.
@@ -148,6 +158,8 @@ public partial class MainWindow : Window
         UpdateResizeGripsVisibility();
         ShowChrome();
         _watchdog.Start();
+        _lastFpsTick = Environment.TickCount64;
+        _fpsTimer.Start();
 
         if (_demoMode)
         {
@@ -206,6 +218,7 @@ public partial class MainWindow : Window
         _watchdog.Stop();
         _hideTimer.Stop();
         _toastTimer?.Stop();
+        _fpsTimer.Stop();
         _capture.FrameArrived -= OnFrameArrived;
         _capture.Error -= OnCaptureError;
         _kvm.StateChanged -= OnKvmStateChanged;
@@ -333,6 +346,41 @@ public partial class MainWindow : Window
             await AutoStartAsync();
         }
         finally { _reconnecting = false; }
+    }
+
+    private void UpdateFps()
+    {
+        long now = Environment.TickCount64;
+        double secs = (now - _lastFpsTick) / 1000.0;
+        if (secs <= 0) return;
+
+        long cap = _capture.CapturedFrames, pres = _capture.PresentedFrames;
+        double capFps = (cap - _lastCapturedFrames) / secs;
+        double presFps = (pres - _lastPresentedFrames) / secs;
+        _lastCapturedFrames = cap;
+        _lastPresentedFrames = pres;
+        _lastFpsTick = now;
+
+        if (!_settings.ShowFps) return;
+
+        string fmt = _demoMode
+            ? "demo"
+            : _capture.IsRunning && _capture.CurrentPixelFormat is { } pf
+                ? $"{_capture.FrameWidth}x{_capture.FrameHeight} {pf}{(_capture.CurrentIsCompressed ? " (mjpeg)" : "")}"
+                : "no signal";
+
+        _fpsText.Text = $"capture {capFps,3:0} fps   shown {presFps,3:0} fps\n{fmt}";
+
+        // Also mirror to a temp file so performance can be checked without reading the GUI.
+        try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "vccv_fps.txt"), $"capture {capFps:0} / shown {presFps:0} fps  {fmt}"); }
+        catch { /* best effort */ }
+    }
+
+    private void ToggleFps()
+    {
+        _settings.ShowFps = !_settings.ShowFps;
+        _fpsOverlay.IsVisible = _settings.ShowFps;
+        _settings.Save();
     }
 
     public void RescanDevices() => _ = AutoStartAsync();
@@ -930,6 +978,8 @@ public partial class MainWindow : Window
                 WindowState = WindowState.Minimized; e.Handled = true; break;
             case Key.S when ctrl:
                 SaveSnapshot(); e.Handled = true; break;
+            case Key.F when ctrl:
+                ToggleFps(); e.Handled = true; break;
         }
     }
 

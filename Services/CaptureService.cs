@@ -34,6 +34,14 @@ public sealed class CaptureService : IAsyncDisposable
 
     private Bitmap? _fallback; // for the rare MJPEG/JPEG path
 
+    // Diagnostics
+    private long _capturedFrames;
+    private long _presentedFrames;
+    public long CapturedFrames => System.Threading.Interlocked.Read(ref _capturedFrames);
+    public long PresentedFrames => System.Threading.Interlocked.Read(ref _presentedFrames);
+    public string? CurrentPixelFormat { get; private set; }
+    public bool CurrentIsCompressed { get; private set; }
+
     /// <summary>Raised on the UI thread with the bitmap currently showing the newest frame.</summary>
     public event Action<Bitmap>? FrameArrived;
     /// <summary>Raised on the UI thread when capture fails.</summary>
@@ -87,7 +95,13 @@ public sealed class CaptureService : IAsyncDisposable
         var uncompressed = renderable.Where(c => !c.IsCompression).ToList();
         var pool = uncompressed.Count > 0 ? uncompressed : renderable;
 
-        return pool
+        // Default to <=1080p for a smooth, low-CPU preview (a 1440p/4K webcam mode is needless work).
+        // If the device only offers higher (e.g. a 4K-only capture card), take what's there.
+        // Either way the user can pick any mode in Settings.
+        var capped = pool.Where(c => c.Height <= 1080).ToList();
+        var chosen = capped.Count > 0 ? capped : pool;
+
+        return chosen
             .OrderByDescending(c => (long)c.Width * c.Height)
             .ThenByDescending(DeviceHeuristics.ToFps)
             .First();
@@ -117,6 +131,10 @@ public sealed class CaptureService : IAsyncDisposable
                 FrameHeight = characteristics.Height;
                 FrameRate = DeviceHeuristics.ToFps(characteristics);
                 CurrentDeviceName = descriptor.Name;
+                CurrentPixelFormat = characteristics.PixelFormat.ToString();
+                CurrentIsCompressed = characteristics.IsCompression;
+                System.Threading.Interlocked.Exchange(ref _capturedFrames, 0);
+                System.Threading.Interlocked.Exchange(ref _presentedFrames, 0);
             }
 
             await device.StartAsync().ConfigureAwait(false);
@@ -151,6 +169,7 @@ public sealed class CaptureService : IAsyncDisposable
     {
         try
         {
+            System.Threading.Interlocked.Increment(ref _capturedFrames);
             if (_uiBusy) return; // UI hasn't presented the previous frame yet — drop to latest.
 
             lock (_lifecycleLock)
@@ -189,7 +208,10 @@ public sealed class CaptureService : IAsyncDisposable
                 var bmp = _buffers[idx];
                 _uiBusy = false;
                 if (bmp is not null)
+                {
+                    System.Threading.Interlocked.Increment(ref _presentedFrames);
                     FrameArrived?.Invoke(bmp);
+                }
             }, DispatcherPriority.Render);
         }
         catch
@@ -218,6 +240,7 @@ public sealed class CaptureService : IAsyncDisposable
             var previous = _fallback;
             _fallback = bmp;
             _uiBusy = false;
+            System.Threading.Interlocked.Increment(ref _presentedFrames);
             FrameArrived?.Invoke(bmp);
             previous?.Dispose();
         }, DispatcherPriority.Render);

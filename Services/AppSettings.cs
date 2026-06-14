@@ -20,6 +20,9 @@ public sealed class AppSettings
     /// <summary>How the video fills the window: "Uniform" (letterbox), "UniformToFill", "Fill", or "None".</summary>
     public string StretchMode { get; set; } = "Uniform";
 
+    /// <summary>Show the FPS / diagnostics overlay (toggle with Ctrl+F).</summary>
+    public bool ShowFps { get; set; }
+
     // ---- Audio passthrough ----
     /// <summary>Play the capture card's audio through the default output device.</summary>
     public bool AudioEnabled { get; set; } = true;

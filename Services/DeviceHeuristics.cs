@@ -60,6 +60,16 @@ public static class DeviceHeuristics
         var reasons = new List<string>();
         int score = 0;
 
+        // Legacy Video-for-Windows shim devices ("Default"/"VideoForWindows default") are slow and
+        // unreliable duplicates of the real DirectShow device — never auto-pick them when anything
+        // else exists.
+        if (haystack.Contains("videoforwindows") || haystack.Contains("vfw") ||
+            string.Equals(d.Name?.Trim(), "Default", StringComparison.OrdinalIgnoreCase))
+        {
+            score -= 1000;
+            reasons.Add("-1000 legacy VFW device");
+        }
+
         foreach (var kw in s_captureKeywords)
         {
             if (haystack.Contains(kw))

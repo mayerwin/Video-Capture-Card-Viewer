@@ -123,6 +123,16 @@
       </Grid>
     </Border>
 
+    <!-- ===== FPS / diagnostics overlay (toggle with Ctrl+F) ===== -->
+    <Border Name="FpsOverlay"
+            VerticalAlignment="Top" HorizontalAlignment="Left"
+            Margin="10,42,0,0"
+            Background="#A0000000" CornerRadius="6" Padding="9,5"
+            IsHitTestVisible="False" IsVisible="False">
+      <TextBlock Name="FpsText" Foreground="#FF6BFF9E"
+                 FontFamily="Consolas, Cascadia Mono, monospace" FontSize="12" />
+    </Border>
+
     <!-- ===== Transient toast (snapshot saved, audio toggled, fullscreen hint) ===== -->
     <Border Name="Toast"
             Opacity="0" IsHitTestVisible="False"
