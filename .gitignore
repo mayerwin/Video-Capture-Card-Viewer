@@ -13,3 +13,7 @@ publish/
 
 ## Local settings dumps
 *.binlog
+
+# Editor/atomic-write temp files
+*.tmp
+*.tmp.*
