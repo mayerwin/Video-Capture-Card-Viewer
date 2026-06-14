@@ -107,15 +107,17 @@
 
             <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
               <StackPanel Grid.Column="0">
-                <TextBlock Text="Serial / COM port" Foreground="#CCFFFFFF" FontSize="12" Margin="0,0,0,2" />
+                <TextBlock Name="KvmPortLabel" Text="Serial / COM port" Foreground="#CCFFFFFF" FontSize="12" Margin="0,0,0,2" />
                 <ComboBox Name="KvmPortCombo" HorizontalAlignment="Stretch" />
               </StackPanel>
               <Button Grid.Column="1" Content="Refresh" Click="OnRefreshPortsClick"
                       VerticalAlignment="Bottom" Margin="8,0,0,0" Padding="12,6" />
             </Grid>
 
-            <TextBlock Text="Baud rate" Margin="0,8,0,2" Foreground="#CCFFFFFF" FontSize="12" />
-            <ComboBox Name="KvmBaudCombo" HorizontalAlignment="Stretch" />
+            <StackPanel Name="KvmBaudPanel">
+              <TextBlock Text="Baud rate" Margin="0,8,0,2" Foreground="#CCFFFFFF" FontSize="12" />
+              <ComboBox Name="KvmBaudCombo" HorizontalAlignment="Stretch" />
+            </StackPanel>
 
             <CheckBox Name="KvmAutoConnectCheck" Content="Connect automatically on launch" Margin="0,6,0,0" />
 

@@ -145,25 +145,20 @@ public sealed class Ch9329Backend : SerialKvmBackend
 /// </summary>
 public sealed class FlipperZeroBackend : SerialKvmBackend
 {
-    public override string Name => "Flipper Zero (companion bridge)";
+    public override string Name => "Flipper Zero (USB / serial)";
 
     protected override async Task OnConnectedAsync(CancellationToken ct)
     {
         // Greet the companion app so it can switch into bridge mode.
-        await WriteLineAsync("VCKVM 1").ConfigureAwait(false);
+        await WriteLineAsync(FlipperProtocol.Hello).ConfigureAwait(false);
     }
 
     public override Task SendKeyboardAsync(byte modifiers, IReadOnlyList<byte> keys)
-    {
-        var report = BuildKeyboardReport(modifiers, keys);
-        var sb = new StringBuilder("KB");
-        foreach (var b in report) sb.Append(' ').Append(b.ToString("X2"));
-        return WriteLineAsync(sb.ToString());
-    }
+        => WriteLineAsync(FlipperProtocol.Keyboard(modifiers, keys));
 
     public override Task SendMouseAbsoluteAsync(int xNorm, int yNorm, byte buttons, sbyte wheel)
-        => WriteLineAsync($"MA {xNorm} {yNorm} {buttons} {wheel}");
+        => WriteLineAsync(FlipperProtocol.MouseAbsolute(xNorm, yNorm, buttons, wheel));
 
     public override Task SendMouseRelativeAsync(sbyte dx, sbyte dy, byte buttons, sbyte wheel)
-        => WriteLineAsync($"MR {dx} {dy} {buttons} {wheel}");
+        => WriteLineAsync(FlipperProtocol.MouseRelative(dx, dy, buttons, wheel));
 }

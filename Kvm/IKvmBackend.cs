@@ -5,20 +5,29 @@ public enum KvmBackendKind
     /// <summary>No hardware — logs reports. Lets you verify wiring/mapping without a dongle.</summary>
     Loopback,
 
-    /// <summary>CH9329 USB-serial → HID chip (recommended, ~$10).</summary>
+    /// <summary>CH9329 USB-serial → HID chip (recommended dongle, ~$10).</summary>
     Ch9329,
 
-    /// <summary>Flipper Zero running the companion bridge app (USB CDC or BLE-bound COM port).</summary>
-    FlipperZero,
+    /// <summary>Flipper Zero over Bluetooth LE (primary Flipper path: PC→BLE→Flipper→USB→target).</summary>
+    FlipperBle,
+
+    /// <summary>Flipper Zero over a serial/COM link (USB CDC or GPIO UART) to the companion app.</summary>
+    FlipperSerial,
 }
 
 public sealed class KvmConnectionOptions
 {
     public KvmBackendKind Kind { get; init; } = KvmBackendKind.Loopback;
+
+    // Serial backends (CH9329 / Flipper serial):
     public string? PortName { get; init; }
     // 115200 matches the Flipper companion firmware. Configure a CH9329 module to the same rate
     // (or pick its current rate, often 9600, from the dropdown).
     public int BaudRate { get; init; } = 115200;
+
+    // Bluetooth backend (Flipper over BLE):
+    public string? BleDeviceId { get; init; }
+    public string? BleDeviceName { get; init; }
 }
 
 /// <summary>

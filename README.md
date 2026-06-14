@@ -78,10 +78,12 @@ for testing):
 - **CH9329** (recommended, ~$10) — a USB‑serial→HID chip. The viewer drives it over a COM port; its
   HID side plugs into the target. Fully supported, including absolute mouse positioning. Set the
   module's baud to **115200** (the default) or pick its current rate in Settings.
-- **Flipper Zero** (experimental) — via the companion app in [`flipper-companion/`](flipper-companion/).
-  The viewer streams commands over a serial link (BLE‑UART bridged to a COM port, or GPIO UART) and
-  the Flipper re‑emits USB HID to the target. See that folder's README for the protocol and limits
-  (Flipper's USB mouse is relative‑only).
+- **Flipper Zero over Bluetooth** — the intended wireless path: **PC → Bluetooth → Flipper → USB →
+  target**. Pair the Flipper, run the companion app in [`flipper-companion/`](flipper-companion/), then
+  pick **Flipper Zero (Bluetooth)** in Settings. The app connects straight to the Flipper's serial
+  GATT service (no COM bridge); the Flipper's USB presents HID to the target. A USB/serial (GPIO‑UART)
+  fallback is also supported. The companion firmware is best‑effort against the official BLE‑serial API
+  (verify on‑device) and the Flipper's USB mouse is relative‑only, so absolute positioning is approximated.
 
 When connected: click the picture to take control (the cursor hides), press **Scroll Lock** to release.
 Pointer position maps 1:1 to the captured resolution.

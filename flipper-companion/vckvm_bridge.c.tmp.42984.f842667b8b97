@@ -1,14 +1,13 @@
 /*
  * VCKVM Bridge - Flipper Zero companion app for the Video Capture Card Viewer KVM feature.
  *
- * Topology (primary, matches the app's "Flipper Zero (Bluetooth)" backend):
+ * Topology (matches the app's "Flipper Zero" backend):
  *
- *     [PC: Video Capture Card Viewer] --BLE serial GATT--> [Flipper] --USB HID--> [target machine]
+ *     [PC running Video Capture Card Viewer] --(serial line protocol)--> [Flipper] --(USB HID)--> [target PC]
  *
- * The PC is paired to the Flipper over Bluetooth and writes our protocol straight to the Flipper's
- * custom serial GATT service (no COM bridge). Meanwhile the Flipper's USB port is reconfigured as a
- * USB HID keyboard+mouse and plugged into the *target* machine. A GPIO UART (pins 13/14) fed from a
- * USB-UART adapter is also accepted as a wired fallback.
+ * The serial link can be the Flipper's BLE serial (Nordic UART, bridged to a COM port on the PC),
+ * or the GPIO UART on pins 13/14 fed from a USB-UART adapter. Either way the Flipper's USB port is
+ * reconfigured as a USB HID keyboard+mouse and plugged into the *target* machine.
  *
  * IMPORTANT
  * ---------
@@ -33,8 +32,6 @@
 #include <furi.h>
 #include <furi_hal.h>
 #include <furi_hal_usb_hid.h>
-#include <furi_hal_bt.h>
-#include <furi_hal_bt_serial.h>
 #include <gui/gui.h>
 #include <input/input.h>
 #include <stdlib.h>

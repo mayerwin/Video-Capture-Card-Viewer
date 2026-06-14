@@ -29,17 +29,17 @@ public static class ScreenshotRunner
     {
         Directory.CreateDirectory(outDir);
         Render(Path.Combine(outDir, "01-main-view.png"), BuildMainView());
-        Render(Path.Combine(outDir, "02-settings.png"), BuildSettings());
+        Render(Path.Combine(outDir, "02-settings.png"), BuildSettings(), W, 940);
         Render(Path.Combine(outDir, "03-borderless-native.png"), BuildBorderless());
     }
 
-    private static void Render(string path, Control content)
+    private static void Render(string path, Control content, int width = W, int height = H)
     {
-        var size = new Size(W, H);
+        var size = new Size(width, height);
         content.Measure(size);
         content.Arrange(new Rect(size));
 
-        var rtb = new RenderTargetBitmap(new PixelSize(W, H), new Vector(96, 96));
+        var rtb = new RenderTargetBitmap(new PixelSize(width, height), new Vector(96, 96));
         rtb.Render(content);
         rtb.Save(path);
     }
@@ -110,13 +110,13 @@ public static class ScreenshotRunner
     // ---- Scene 2: settings panel over a dimmed feed ----
     private static Control BuildSettings()
     {
-        var root = new Grid { Width = W, Height = H, Background = Brushes.Black };
+        var root = new Grid { Width = W, Height = 940, Background = Brushes.Black };
         root.Children.Add(FakeScreen());
         root.Children.Add(new Border { Background = new SolidColorBrush(Color.Parse("#99000000")) });
 
         var panel = new Border
         {
-            Width = 540,
+            Width = 560,
             Background = PanelBg,
             CornerRadius = new CornerRadius(12),
             BorderBrush = new SolidColorBrush(Color.Parse("#22FFFFFF")),
@@ -141,13 +141,20 @@ public static class ScreenshotRunner
             FakeCheck("Show window border / title bar", false),
             FakeCheck("Always on top", false),
             FakeCheck("Start in fullscreen", false),
+            FakeCombo("Scaling", "Uniform (letterbox)"),
             FakeButton("Restore native resolution (1:1, no scaling)"),
+        }));
+
+        stack.Children.Add(Card("Audio", new[]
+        {
+            FakeCheck("Play the capture card's audio (passthrough)", true),
+            FakeCombo("Audio input", "Auto (match capture device)"),
         }));
 
         stack.Children.Add(Card("KVM - control the target's keyboard & mouse", new[]
         {
-            FakeCombo("Backend", "CH9329 USB-serial HID dongle (recommended)"),
-            FakeCombo("Serial / COM port", "COM5"),
+            FakeCombo("Backend", "Flipper Zero - Bluetooth (recommended for Flipper)"),
+            FakeCombo("Bluetooth device (paired)", "Flipper Ak3z"),
             FakeButton("Connect"),
         }));
 

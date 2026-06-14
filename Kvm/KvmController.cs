@@ -69,7 +69,8 @@ public sealed class KvmController : IAsyncDisposable
             var backend = options.Kind switch
             {
                 KvmBackendKind.Ch9329 => (IKvmBackend)new Ch9329Backend(),
-                KvmBackendKind.FlipperZero => new FlipperZeroBackend(),
+                KvmBackendKind.FlipperBle => new FlipperBleBackend(),
+                KvmBackendKind.FlipperSerial => new FlipperZeroBackend(),
                 _ => new LoopbackBackend(m => Log?.Invoke(m)),
             };
 

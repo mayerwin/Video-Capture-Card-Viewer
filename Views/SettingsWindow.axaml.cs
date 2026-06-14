@@ -31,7 +31,9 @@ public partial class SettingsWindow : Window
 
     private ComboBox _kvmBackendCombo = null!;
     private ComboBox _kvmPortCombo = null!;
+    private TextBlock _kvmPortLabel = null!;
     private ComboBox _kvmBaudCombo = null!;
+    private StackPanel _kvmBaudPanel = null!;
     private CheckBox _kvmAutoConnectCheck = null!;
     private Button _kvmConnectButton = null!;
     private TextBlock _kvmStatus = null!;
@@ -54,6 +56,11 @@ public partial class SettingsWindow : Window
     private sealed record BackendItem(string Value, string Label)
     {
         public override string ToString() => Label;
+    }
+
+    private sealed record BleItem(string Id, string Name)
+    {
+        public override string ToString() => string.IsNullOrEmpty(Name) ? Id : Name;
     }
 
     // Designer ctor
@@ -82,7 +89,9 @@ public partial class SettingsWindow : Window
 
         _kvmBackendCombo = this.FindControl<ComboBox>("KvmBackendCombo")!;
         _kvmPortCombo = this.FindControl<ComboBox>("KvmPortCombo")!;
+        _kvmPortLabel = this.FindControl<TextBlock>("KvmPortLabel")!;
         _kvmBaudCombo = this.FindControl<ComboBox>("KvmBaudCombo")!;
+        _kvmBaudPanel = this.FindControl<StackPanel>("KvmBaudPanel")!;
         _kvmAutoConnectCheck = this.FindControl<CheckBox>("KvmAutoConnectCheck")!;
         _kvmConnectButton = this.FindControl<Button>("KvmConnectButton")!;
         _kvmStatus = this.FindControl<TextBlock>("KvmStatus")!;
@@ -120,8 +129,30 @@ public partial class SettingsWindow : Window
             UpdateAudioStatus();
         };
 
-        _kvmBackendCombo.SelectionChanged += (_, _) => { if (_suppressEvents) return; if (_kvmBackendCombo.SelectedItem is BackendItem b) { _settings.KvmBackend = b.Value; _settings.Save(); } };
-        _kvmPortCombo.SelectionChanged += (_, _) => { if (_suppressEvents) return; _settings.KvmComPort = _kvmPortCombo.SelectedItem as string; _settings.Save(); };
+        _kvmBackendCombo.SelectionChanged += (_, _) =>
+        {
+            if (_suppressEvents) return;
+            if (_kvmBackendCombo.SelectedItem is BackendItem b)
+            {
+                _settings.KvmBackend = b.Value;
+                _settings.Save();
+                ApplyBackendMode(b.Value);
+                UpdateKvmUi();
+            }
+        };
+        _kvmPortCombo.SelectionChanged += (_, _) =>
+        {
+            if (_suppressEvents) return;
+            if (_settings.KvmBackend == "FlipperBle")
+            {
+                if (_kvmPortCombo.SelectedItem is BleItem ble) { _settings.KvmBleDeviceId = ble.Id; _settings.KvmBleDeviceName = ble.Name; }
+            }
+            else
+            {
+                _settings.KvmComPort = _kvmPortCombo.SelectedItem as string;
+            }
+            _settings.Save();
+        };
         _kvmBaudCombo.SelectionChanged += (_, _) => { if (_suppressEvents) return; if (_kvmBaudCombo.SelectedItem is int baud) { _settings.KvmBaudRate = baud; _settings.Save(); } };
         _kvmAutoConnectCheck.IsCheckedChanged += (_, _) => { if (!_suppressEvents) { _settings.KvmAutoConnect = _kvmAutoConnectCheck.IsChecked == true; _settings.Save(); } };
 
@@ -168,19 +199,33 @@ public partial class SettingsWindow : Window
         var backends = new List<BackendItem>
         {
             new("Loopback", "Loopback (no hardware - logs only)"),
-            new("Ch9329", "CH9329 USB-serial HID dongle (recommended)"),
-            new("FlipperZero", "Flipper Zero (companion bridge app)"),
+            new("Ch9329", "CH9329 USB-serial HID dongle (recommended dongle)"),
+            new("FlipperBle", "Flipper Zero - Bluetooth (recommended for Flipper)"),
+            new("FlipperSerial", "Flipper Zero - USB / serial"),
         };
         _kvmBackendCombo.ItemsSource = backends;
-        _kvmBackendCombo.SelectedItem = backends.FirstOrDefault(b => b.Value == _settings.KvmBackend) ?? backends[0];
-
-        RefreshPorts();
+        var selected = backends.FirstOrDefault(b => b.Value == _settings.KvmBackend)
+            ?? (_settings.KvmBackend == "FlipperZero" ? backends.First(b => b.Value == "FlipperSerial") : backends[0]);
+        _kvmBackendCombo.SelectedItem = selected;
 
         var bauds = new List<int> { 9600, 19200, 38400, 57600, 115200 };
         _kvmBaudCombo.ItemsSource = bauds;
         _kvmBaudCombo.SelectedItem = bauds.Contains(_settings.KvmBaudRate) ? _settings.KvmBaudRate : 115200;
 
         _suppressEvents = false;
+
+        ApplyBackendMode(selected.Value);
+    }
+
+    /// <summary>Switch the device picker between COM ports (serial backends) and paired BLE devices.</summary>
+    private void ApplyBackendMode(string backend)
+    {
+        bool ble = backend == "FlipperBle";
+        _kvmPortLabel.Text = ble ? "Bluetooth device (paired)" : "Serial / COM port";
+        _kvmBaudPanel.IsVisible = !ble;
+
+        if (ble) PopulateBleDevices();
+        else RefreshPorts();
     }
 
     private void RefreshPorts()
@@ -196,7 +241,37 @@ public partial class SettingsWindow : Window
         _suppressEvents = wasSuppressed;
     }
 
-    private void OnRefreshPortsClick(object? sender, RoutedEventArgs e) => RefreshPorts();
+    private async void PopulateBleDevices()
+    {
+        _suppressEvents = true;
+        _kvmPortCombo.ItemsSource = new List<BleItem> { new(string.Empty, "Scanning paired devices...") };
+        _kvmPortCombo.SelectedIndex = 0;
+        _suppressEvents = false;
+
+        IReadOnlyList<(string Id, string Name)> devices;
+        try { devices = await Kvm.FlipperBleBackend.ListPairedAsync(); }
+        catch { devices = Array.Empty<(string, string)>(); }
+
+        var items = devices.Select(d => new BleItem(d.Id, d.Name)).ToList();
+
+        _suppressEvents = true;
+        if (items.Count == 0)
+        {
+            _kvmPortCombo.ItemsSource = new List<BleItem> { new(string.Empty, "(no paired Bluetooth devices)") };
+            _kvmPortCombo.SelectedIndex = 0;
+        }
+        else
+        {
+            _kvmPortCombo.ItemsSource = items;
+            _kvmPortCombo.SelectedItem =
+                items.FirstOrDefault(i => i.Id == _settings.KvmBleDeviceId)
+                ?? items.FirstOrDefault(i => i.Name == _settings.KvmBleDeviceName)
+                ?? items.FirstOrDefault();
+        }
+        _suppressEvents = false;
+    }
+
+    private void OnRefreshPortsClick(object? sender, RoutedEventArgs e) => ApplyBackendMode(_settings.KvmBackend);
 
     private async void OnKvmConnectClick(object? sender, RoutedEventArgs e)
     {
@@ -212,8 +287,19 @@ public partial class SettingsWindow : Window
 
         // Persist current selections, then connect.
         if (_kvmBackendCombo.SelectedItem is BackendItem b) _settings.KvmBackend = b.Value;
-        _settings.KvmComPort = _kvmPortCombo.SelectedItem as string;
-        if (_kvmBaudCombo.SelectedItem is int baud) _settings.KvmBaudRate = baud;
+        if (_settings.KvmBackend == "FlipperBle")
+        {
+            if (_kvmPortCombo.SelectedItem is BleItem ble && !string.IsNullOrEmpty(ble.Id))
+            {
+                _settings.KvmBleDeviceId = ble.Id;
+                _settings.KvmBleDeviceName = ble.Name;
+            }
+        }
+        else
+        {
+            _settings.KvmComPort = _kvmPortCombo.SelectedItem as string;
+            if (_kvmBaudCombo.SelectedItem is int baud) _settings.KvmBaudRate = baud;
+        }
         _settings.Save();
 
         _kvmStatus.Text = "Connecting...";

@@ -377,7 +377,8 @@ public partial class MainWindow : Window
     public static KvmBackendKind ParseBackend(string? value) => value switch
     {
         "Ch9329" => KvmBackendKind.Ch9329,
-        "FlipperZero" => KvmBackendKind.FlipperZero,
+        "FlipperBle" => KvmBackendKind.FlipperBle,
+        "FlipperSerial" or "FlipperZero" => KvmBackendKind.FlipperSerial, // FlipperZero = back-compat
         _ => KvmBackendKind.Loopback,
     };
 
@@ -388,6 +389,8 @@ public partial class MainWindow : Window
             Kind = ParseBackend(_settings.KvmBackend),
             PortName = _settings.KvmComPort,
             BaudRate = _settings.KvmBaudRate,
+            BleDeviceId = _settings.KvmBleDeviceId,
+            BleDeviceName = _settings.KvmBleDeviceName,
         };
 
         try

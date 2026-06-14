@@ -44,10 +44,13 @@ public sealed class AppSettings
     public string? PreferredFormat { get; set; }
 
     // ---- KVM (requires a USB HID dongle such as a CH9329; a PC cannot emulate USB HID by itself) ----
-    /// <summary>"Loopback", "Ch9329", or "FlipperZero".</summary>
+    /// <summary>"Loopback", "Ch9329", "FlipperBle", or "FlipperSerial".</summary>
     public string KvmBackend { get; set; } = "Loopback";
     public string? KvmComPort { get; set; }
     public int KvmBaudRate { get; set; } = 115200;
+    /// <summary>Paired Bluetooth device for the Flipper BLE backend.</summary>
+    public string? KvmBleDeviceId { get; set; }
+    public string? KvmBleDeviceName { get; set; }
     /// <summary>Connect the KVM backend automatically on launch.</summary>
     public bool KvmAutoConnect { get; set; }
 

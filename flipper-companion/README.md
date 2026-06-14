@@ -5,15 +5,20 @@ Viewer's KVM feature. The viewer sends keyboard/mouse commands over a serial lin
 re‑emits them as a real USB keyboard + mouse to the **target** machine.
 
 ```
-[PC: Video Capture Card Viewer]  --serial-->  [Flipper Zero]  --USB HID-->  [target machine]
-            (BLE UART, or GPIO UART pins 13/14)         (USB-C to the target)
+[PC: Video Capture Card Viewer]  --Bluetooth LE-->  [Flipper Zero]  --USB HID-->  [target machine]
+        (paired; writes the Flipper serial GATT)              (USB-C to the target)
 ```
 
-> **Reality check.** A Flipper is *not* required — a **CH9329** dongle (~$10) is the recommended,
-> fully‑tested backend and needs no custom firmware. The Flipper path is **experimental**: it needs
-> this companion app, its USB HID mouse is *relative only* (absolute coordinates are approximated),
-> and one radio serves one host at a time (USB → target, so commands must come in over BLE or the
-> GPIO UART, **not** the same USB cable).
+**Primary path = Bluetooth.** The viewer's **"Flipper Zero (Bluetooth)"** backend pairs with the
+Flipper and writes this protocol straight to its custom serial GATT service — no COM bridge, no extra
+dongle. The Flipper's USB stays free to be the HID device into the target. (USB and BLE run on
+different cores, so they coexist.) A GPIO-UART wire is supported as a fallback.
+
+> **Reality check.** A Flipper is *not* required — a **CH9329** dongle (~$10) is the simplest,
+> fully‑tested backend and needs no custom firmware. The Flipper path needs this companion app and is
+> best-effort against the official firmware's BLE-serial API (verify on-device); its USB HID mouse is
+> *relative only*, so absolute coordinates are approximated. One radio serves one host: USB drives the
+> target, so commands arrive over **Bluetooth** (or the GPIO UART), never the same USB cable.
 
 ## Protocol
 
@@ -40,16 +45,16 @@ HID mouse buttons: `1`=left, `2`=right, `4`=middle. HID modifier bits: `0x01` LC
 
 When the app starts it switches the Flipper's USB into HID mode. Plug that USB‑C into the **target**.
 
-## Wiring the serial link
+## Connecting
 
-- **GPIO UART (implemented, most reliable):** feed lines into pins **13 (RX)** / **14 (TX)**,
-  `115200 8N1`, from a USB‑UART adapter on the PC. Point the viewer's KVM COM port at that adapter.
-  This is the path `vckvm_bridge.c` ships with. If the UART can't be acquired the app exits with an
-  error (it won't hang silently).
-- **Bluetooth (not wired up in this reference):** the user's intended PC→BLE→Flipper→USB topology is
-  possible but needs you to feed the Flipper's BLE‑serial RX into the `g_rx` stream buffer (replace
-  the USART acquire/callback in `vckvm_bridge.c` with your firmware's `furi_hal_bt` serial callback).
-  Until you do, use the GPIO‑UART path above (a BLE‑UART→COM dongle on the PC side also works).
+- **Bluetooth (primary):** pair the Flipper with the PC in Windows Bluetooth settings. Run **VCKVM
+  Bridge** on the Flipper, then in the viewer's Settings choose **KVM → Flipper Zero (Bluetooth)**,
+  pick the paired Flipper, and **Connect**. The app talks to the Flipper's serial GATT service
+  directly (service `8fe5b3d5-…`, write characteristic `…62fe0000`). The firmware registers a BLE
+  serial RX callback (`furi_hal_bt_serial_set_event_callback`) that feeds the same parser.
+- **GPIO UART (fallback):** feed lines into pins **13 (RX)** / **14 (TX)**, `115200 8N1`, from a
+  USB‑UART adapter, and choose **Flipper Zero (USB / serial)** with that COM port. Both inputs feed
+  the same buffer, so either works.
 
 ## Pointer sensitivity
 
@@ -61,7 +66,8 @@ release-all so nothing stays stuck.
 
 ## Notes for porting
 
-`furi_hal_*` names occasionally change between firmware versions. The only firmware‑specific calls are
-the HID emit functions (`furi_hal_hid_kb_press/release`, `furi_hal_hid_mouse_move/press/release/scroll`)
-and the serial RX in `vckvm_bridge.c`. If the build can't resolve a symbol, check your installed SDK
-headers and adjust those few calls.
+`furi_hal_*` names occasionally change between firmware versions. The firmware‑specific calls are the
+HID emit functions (`furi_hal_hid_kb_press/release`, `furi_hal_hid_mouse_move/press/release/scroll`),
+the **BLE serial RX** (`furi_hal_bt_serial_set_event_callback` + `SerialServiceEvent`), and the GPIO
+UART RX. If the build can't resolve a symbol, check your installed SDK headers (or the
+`ble_profile_serial_*` API on newer firmware) and adjust those few calls.
