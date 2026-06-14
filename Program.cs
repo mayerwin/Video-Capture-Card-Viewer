@@ -19,6 +19,16 @@ internal static class Program
             return;
         }
 
+        // Generate the multi-size app icon (.ico) and exit.
+        int mi = Array.FindIndex(args, a => string.Equals(a, "--make-icon", StringComparison.OrdinalIgnoreCase));
+        if (mi >= 0)
+        {
+            var icoPath = (mi + 1 < args.Length && !args[mi + 1].StartsWith('-')) ? args[mi + 1] : "icon.ico";
+            BuildAvaloniaApp().SetupWithoutStarting();
+            System.IO.File.WriteAllBytes(icoPath, AppIcon.BuildIco(16, 24, 32, 48, 64, 128, 256));
+            return;
+        }
+
         // Headless screenshot mode: render marketing PNGs and exit (no window, no single-instance guard).
         int idx = Array.FindIndex(args, a => string.Equals(a, "--screenshots", StringComparison.OrdinalIgnoreCase));
         if (idx >= 0)

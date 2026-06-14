@@ -71,6 +71,7 @@ public partial class SettingsWindow : Window
         _owner = owner;
         _settings = settings;
         AvaloniaXamlLoader.Load(this);
+        Icon = AppIcon.LoadWindowIcon();
 
         _deviceCombo = this.FindControl<ComboBox>("DeviceCombo")!;
         _formatCombo = this.FindControl<ComboBox>("FormatCombo")!;

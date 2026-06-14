@@ -72,10 +72,10 @@ public sealed class CaptureService : IAsyncDisposable
         $"{c.Width}x{c.Height}@{DeviceHeuristics.ToFps(c):0.##}";
 
     /// <summary>
-    /// Choose a capture format. Honors a remembered "WxH@fps", otherwise prefers the largest
-    /// UNCOMPRESSED format (YUY2/NV12/RGB) at the highest frame rate — uncompressed avoids a
-    /// per-frame JPEG decode and takes the fast zero-copy blit path. Falls back to MJPEG only if no
-    /// uncompressed format exists.
+    /// Choose a capture format. Honors a remembered "WxH@fps"; otherwise picks the HIGHEST
+    /// resolution the device offers (that's the point of a good camera/capture card). At a given
+    /// resolution it prefers an uncompressed format (YUY2/NV12 → fast zero-copy blit, no JPEG decode)
+    /// and the highest frame rate.
     /// </summary>
     public static VideoCharacteristics? PickBestFormat(CaptureDeviceDescriptor descriptor, string? preferred = null)
     {
@@ -92,18 +92,10 @@ public sealed class CaptureService : IAsyncDisposable
                 return match;
         }
 
-        var uncompressed = renderable.Where(c => !c.IsCompression).ToList();
-        var pool = uncompressed.Count > 0 ? uncompressed : renderable;
-
-        // Default to <=1080p for a smooth, low-CPU preview (a 1440p/4K webcam mode is needless work).
-        // If the device only offers higher (e.g. a 4K-only capture card), take what's there.
-        // Either way the user can pick any mode in Settings.
-        var capped = pool.Where(c => c.Height <= 1080).ToList();
-        var chosen = capped.Count > 0 ? capped : pool;
-
-        return chosen
-            .OrderByDescending(c => (long)c.Width * c.Height)
-            .ThenByDescending(DeviceHeuristics.ToFps)
+        return renderable
+            .OrderByDescending(c => (long)c.Width * c.Height)   // highest resolution first
+            .ThenBy(c => c.IsCompression ? 1 : 0)               // at that resolution, uncompressed wins
+            .ThenByDescending(DeviceHeuristics.ToFps)           // then highest fps
             .First();
     }
 

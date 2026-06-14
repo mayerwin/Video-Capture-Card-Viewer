@@ -85,6 +85,7 @@ public partial class MainWindow : Window
         _settings = settings;
         _demoMode = demoMode;
         AvaloniaXamlLoader.Load(this);
+        Icon = AppIcon.LoadWindowIcon();
 
         _videoSurface = this.FindControl<Border>("VideoSurface")!;
         _display = this.FindControl<Image>("Display")!;

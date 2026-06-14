@@ -13,6 +13,7 @@
     <AssemblyName>VideoCaptureCardViewer</AssemblyName>
     <RootNamespace>VideoCaptureCardViewer</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
 
     <!-- Avalonia options -->
     <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
@@ -33,6 +34,11 @@
     <!-- Trimming is OFF on purpose: Avalonia + reflection-y bits are not trim-clean. -->
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- App icon, embedded so windows can load it via avares:// -->
+    <AvaloniaResource Include="icon.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.0.4" />
