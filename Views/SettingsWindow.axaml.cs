@@ -145,13 +145,19 @@ public partial class SettingsWindow : Window
             if (_suppressEvents) return;
             if (_settings.KvmBackend == "FlipperBle")
             {
-                if (_kvmPortCombo.SelectedItem is BleItem ble) { _settings.KvmBleDeviceId = ble.Id; _settings.KvmBleDeviceName = ble.Name; }
+                // Ignore the "Scanning..."/"(none)" placeholders, which have an empty Id.
+                if (_kvmPortCombo.SelectedItem is BleItem ble && !string.IsNullOrEmpty(ble.Id))
+                {
+                    _settings.KvmBleDeviceId = ble.Id;
+                    _settings.KvmBleDeviceName = ble.Name;
+                    _settings.Save();
+                }
             }
             else
             {
                 _settings.KvmComPort = _kvmPortCombo.SelectedItem as string;
+                _settings.Save();
             }
-            _settings.Save();
         };
         _kvmBaudCombo.SelectionChanged += (_, _) => { if (_suppressEvents) return; if (_kvmBaudCombo.SelectedItem is int baud) { _settings.KvmBaudRate = baud; _settings.Save(); } };
         _kvmAutoConnectCheck.IsCheckedChanged += (_, _) => { if (!_suppressEvents) { _settings.KvmAutoConnect = _kvmAutoConnectCheck.IsChecked == true; _settings.Save(); } };
@@ -241,8 +247,12 @@ public partial class SettingsWindow : Window
         _suppressEvents = wasSuppressed;
     }
 
+    private int _bleScanGen;
+
     private async void PopulateBleDevices()
     {
+        int gen = ++_bleScanGen; // supersede any in-flight scan (rapid backend switch / refresh)
+
         _suppressEvents = true;
         _kvmPortCombo.ItemsSource = new List<BleItem> { new(string.Empty, "Scanning paired devices...") };
         _kvmPortCombo.SelectedIndex = 0;
@@ -252,23 +262,30 @@ public partial class SettingsWindow : Window
         try { devices = await Kvm.FlipperBleBackend.ListPairedAsync(); }
         catch { devices = Array.Empty<(string, string)>(); }
 
-        var items = devices.Select(d => new BleItem(d.Id, d.Name)).ToList();
+        if (gen != _bleScanGen) return; // a newer scan/backend-change won
 
-        _suppressEvents = true;
-        if (items.Count == 0)
+        try
         {
-            _kvmPortCombo.ItemsSource = new List<BleItem> { new(string.Empty, "(no paired Bluetooth devices)") };
-            _kvmPortCombo.SelectedIndex = 0;
+            var items = devices.Select(d => new BleItem(d.Id, d.Name)).ToList();
+            _suppressEvents = true;
+            if (items.Count == 0)
+            {
+                _kvmPortCombo.ItemsSource = new List<BleItem> { new(string.Empty, "(no paired Bluetooth devices)") };
+                _kvmPortCombo.SelectedIndex = 0;
+            }
+            else
+            {
+                _kvmPortCombo.ItemsSource = items;
+                _kvmPortCombo.SelectedItem =
+                    items.FirstOrDefault(i => i.Id == _settings.KvmBleDeviceId)
+                    ?? items.FirstOrDefault(i => i.Name == _settings.KvmBleDeviceName)
+                    ?? items.FirstOrDefault();
+            }
         }
-        else
+        finally
         {
-            _kvmPortCombo.ItemsSource = items;
-            _kvmPortCombo.SelectedItem =
-                items.FirstOrDefault(i => i.Id == _settings.KvmBleDeviceId)
-                ?? items.FirstOrDefault(i => i.Name == _settings.KvmBleDeviceName)
-                ?? items.FirstOrDefault();
+            _suppressEvents = false;
         }
-        _suppressEvents = false;
     }
 
     private void OnRefreshPortsClick(object? sender, RoutedEventArgs e) => ApplyBackendMode(_settings.KvmBackend);

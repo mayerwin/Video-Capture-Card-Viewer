@@ -21,8 +21,8 @@ public static class FlipperProtocol
     }
 
     public static string MouseAbsolute(int xNorm, int yNorm, byte buttons, sbyte wheel)
-        => $"MA {xNorm} {yNorm} {buttons} {wheel}";
+        => FormattableString.Invariant($"MA {xNorm} {yNorm} {buttons} {wheel}");
 
     public static string MouseRelative(sbyte dx, sbyte dy, byte buttons, sbyte wheel)
-        => $"MR {dx} {dy} {buttons} {wheel}";
+        => FormattableString.Invariant($"MR {dx} {dy} {buttons} {wheel}");
 }
