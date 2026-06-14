@@ -33,6 +33,9 @@ your webcam), adds chrome, and won't do 1:1 native sizing. This does exactly one
 - **Snapshot** — `Ctrl+S` saves the current frame as a PNG to `Pictures\Capture Viewer`.
 - **Signal watchdog + hotplug** — clear "no device / signal lost" overlay, auto‑reconnects when the
   device returns, one‑click rescan, and a built‑in test pattern when nothing is connected.
+- **Low-latency rendering** — frames are blitted **zero-copy into a reused, double-buffered
+  `WriteableBitmap`** (no per-frame image decode or allocation, presented at render priority), and it
+  prefers **uncompressed YUY2/NV12** formats to avoid per-frame JPEG decoding — smooth, low-CPU live preview.
 - **Single instance** — a second launch won't fight over the capture device.
 - **Optional KVM** — control the target machine's keyboard & mouse through the viewer (see below).
 

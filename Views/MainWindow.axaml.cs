@@ -95,6 +95,9 @@ public partial class MainWindow : Window
         _toast = this.FindControl<Border>("Toast")!;
         _toastText = this.FindControl<TextBlock>("ToastText")!;
 
+        // Cheap, smooth scaling for constantly-changing video (avoids per-present high-quality resample).
+        RenderOptions.SetBitmapInterpolationMode(_display, BitmapInterpolationMode.LowQuality);
+
         _capture.FrameArrived += OnFrameArrived;
         _capture.Error += OnCaptureError;
 

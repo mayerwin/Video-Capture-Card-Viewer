@@ -9,6 +9,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>VideoCaptureCardViewer</AssemblyName>
     <RootNamespace>VideoCaptureCardViewer</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
